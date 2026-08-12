@@ -1,0 +1,6 @@
+# 파일 이름의 숫자는 적용 순서를 사람이 읽기 위한 것이다.
+# Argo CD는 리소스 종류를 보고 스스로 순서를 정하므로 동작에는 영향이 없다.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: o2-dev

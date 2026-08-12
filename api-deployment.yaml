@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: o2-dev
+  labels:
+    app.kubernetes.io/name: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: api
+    spec:
+      # 종료 신호를 받고 실제로 죽기까지 주는 시간.
+      # 스프링의 graceful shutdown(20s)보다 넉넉해야 처리 중 요청이 안 잘린다.
+      terminationGracePeriodSeconds: 40
+      containers:
+        - name: api
+          # app.yml의 deploy 잡이 yq로 이 줄만 갈아끼운다.
+          # 태그는 커밋 SHA다. latest를 쓰면 롤백이 불가능해진다.
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/api:6235c9340bb2243978aa5bfd1e7d0d3a2c3f75a4
+          ports:
+            - name: http
+              containerPort: 8080
+          # JVM은 뜨는 데 시간이 걸린다. startupProbe로 초기 구동을 봐주지 않으면
+          # liveness가 먼저 실패해 파드가 계속 재시작되는 루프에 빠진다.
+          startupProbe:
+            httpGet: {path: /actuator/health/readiness, port: http}
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet: {path: /actuator/health/readiness, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 384Mi
+            limits:
+              memory: 640Mi # CPU limit은 일부러 걸지 않는다 — 스로틀링이 지연을 만든다
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            # Dockerfile의 USER와 같은 값이어야 한다.
+            # 비워두고 이미지에서 이름으로만 USER를 지정하면 kubelet이
+            # root 여부를 검증하지 못해 CreateContainerConfigError 로 죽는다.
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            # readOnlyRootFilesystem을 켰으니 JVM이 쓸 임시 공간은 따로 준다.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
