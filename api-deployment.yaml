@@ -16,7 +16,8 @@ spec:
         app.kubernetes.io/name: api
     spec:
       # 종료 신호를 받고 실제로 죽기까지 주는 시간.
-      # 스프링의 graceful shutdown(20s)보다 넉넉해야 처리 중 요청이 안 잘린다.
+      # uvicorn은 SIGTERM을 받으면 새 요청을 안 받고 처리 중인 것만 끝낸다.
+      # 그 시간보다 넉넉해야 처리 중 요청이 안 잘린다.
       terminationGracePeriodSeconds: 40
       containers:
         - name: api
@@ -52,7 +53,7 @@ spec:
             capabilities:
               drop: ["ALL"]
           volumeMounts:
-            # readOnlyRootFilesystem을 켰으니 JVM이 쓸 임시 공간은 따로 준다.
+            # readOnlyRootFilesystem을 켰으니 쓸 수 있는 임시 공간을 따로 준다.
             - name: tmp
               mountPath: /tmp
       volumes:
