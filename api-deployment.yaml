@@ -22,7 +22,7 @@ spec:
         - name: api
           # app.yml의 deploy 잡이 yq로 이 줄만 갈아끼운다.
           # 태그는 커밋 SHA다. latest를 쓰면 롤백이 불가능해진다.
-          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/api:6235c9340bb2243978aa5bfd1e7d0d3a2c3f75a4
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/api:a789248a2122041b2b8aee65667d4e099172a0ae
           ports:
             - name: http
               containerPort: 8080
