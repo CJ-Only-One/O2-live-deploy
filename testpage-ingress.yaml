@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: testpage
+  namespace: o2-dev
+  labels:
+    app.kubernetes.io/name: testpage
+  annotations:
+    # 인터넷에서 접근하는 ALB. 퍼블릭 서브넷은 kubernetes.io/role/elb 태그로
+    # 컨트롤러가 스스로 찾는다 (01-network 에서 붙였다).
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    # instance 모드는 NodePort를 거쳐 한 홉 더 간다. VPC CNI가 파드에
+    # VPC IP를 주므로 ALB가 파드로 바로 보낼 수 있다.
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    # 파드가 사라진 뒤에도 ALB가 잠시 보내면 502가 난다.
+    # 드레이닝을 짧게 잡아 롤링 배포 중 끊김을 줄인다.
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=15
+spec:
+  ingressClassName: alb
+  rules:
+    # 호스트를 지정하지 않는다 — 도메인이 아직 없어 ALB의 DNS 이름으로 접근한다.
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: testpage
+                port:
+                  name: http
