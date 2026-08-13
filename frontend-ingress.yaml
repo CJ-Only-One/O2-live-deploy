@@ -23,6 +23,18 @@ spec:
     # 호스트를 지정하지 않는다 — 도메인이 아직 없어 ALB의 DNS 이름으로 접근한다.
     - http:
         paths:
+          # /api는 api 서비스로. ALB는 nginx처럼 경로를 벗겨내지 않고 그대로
+          # 넘기므로(prefix rewrite 없음), api 쪽 라우터도 /api 접두사로
+          # 맞춰뒀다 (apps/api/app/main.py).
+          #
+          # 더 구체적인 경로를 먼저 둔다 — /를 먼저 두면 전부 거기로 빠진다.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: api
+                port:
+                  name: http
           - path: /
             pathType: Prefix
             backend:

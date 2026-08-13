@@ -5,6 +5,11 @@ metadata:
   namespace: o2-dev
   labels:
     app.kubernetes.io/name: api
+  annotations:
+    # frontend-ingress가 이 서비스로 라우팅할 때 쓰는 ALB 타겟그룹의
+    # 헬스체크 경로. Ingress 기본값("/")은 frontend용이라 api에는 안 맞는다
+    # — api는 /api 접두사 밑에만 라우트가 있다.
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
 spec:
   # ClusterIP로 둔다. 외부 노출은 AWS Load Balancer Controller를 통해
   # Ingress로 붙이는 것이 맞다 — 서비스마다 LoadBalancer 타입을 쓰면
