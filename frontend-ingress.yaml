@@ -1,10 +1,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: testpage
+  name: frontend
   namespace: o2-dev
   labels:
-    app.kubernetes.io/name: testpage
+    app.kubernetes.io/name: frontend
   annotations:
     # 인터넷에서 접근하는 ALB. 퍼블릭 서브넷은 kubernetes.io/role/elb 태그로
     # 컨트롤러가 스스로 찾는다 (01-network 에서 붙였다).
@@ -27,6 +27,6 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: testpage
+                name: frontend
                 port:
                   name: http

@@ -25,18 +25,14 @@ spec:
           image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/api:d65b505e97baa4acfc43a28e731e9c87bf8e08f6
           ports:
             - name: http
-              containerPort: 8080
-          # JVM은 뜨는 데 시간이 걸린다. startupProbe로 초기 구동을 봐주지 않으면
-          # liveness가 먼저 실패해 파드가 계속 재시작되는 루프에 빠진다.
-          startupProbe:
-            httpGet: {path: /actuator/health/readiness, port: http}
-            periodSeconds: 5
-            failureThreshold: 30
+              containerPort: 8000
+          # FastAPI/uvicorn은 JVM과 달리 뜨는 데 시간이 안 걸린다.
+          # startupProbe 없이도 liveness가 먼저 실패할 일이 없다.
           readinessProbe:
-            httpGet: {path: /actuator/health/readiness, port: http}
+            httpGet: {path: /health, port: http}
             periodSeconds: 10
           livenessProbe:
-            httpGet: {path: /actuator/health/liveness, port: http}
+            httpGet: {path: /health, port: http}
             periodSeconds: 20
           resources:
             requests:
