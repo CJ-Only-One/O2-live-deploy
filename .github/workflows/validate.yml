@@ -1,0 +1,51 @@
+name: validate
+
+# 이 저장소의 매니페스트가 곧 클러스터 상태다. 잘못된 것이 들어오면
+# Argo가 sync에 실패하고, 그때는 이미 커밋된 뒤라 원인을 클러스터에서 찾게 된다.
+# 여기서 먼저 걸러 Git 단계에서 끝낸다.
+#
+# push에서도 도는 이유: 이미지 태그 갱신 커밋은 앱 저장소의 CI가
+# main으로 직접 민다. PR을 거치지 않으므로 push에서 보지 않으면 검사 자체가 없다.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Argo CD가 도는 클러스터 버전과 맞춘다 (infra/02-eks 의 kubernetes_version).
+  KUBE_VERSION: '1.35.0'
+  KUBECONFORM_VERSION: '0.7.0'
+
+jobs:
+  kubeconform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: kubeconform 설치
+        run: |
+          curl -sSL "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" \
+            | tar xz -C /usr/local/bin kubeconform
+          kubeconform -v
+
+      # -strict: 스키마에 없는 필드를 오류로 본다. 오타 난 필드는 조용히
+      #          무시되어 "적용은 됐는데 설정이 안 먹는" 상태를 만든다.
+      # -ignore-missing-schemas: CRD(Argo Application 등)는 스키마가 없다.
+      #          코어 리소스만 검사하고 나머지는 건너뛴다.
+      - name: 검증
+        run: |
+          kubeconform \
+            -kubernetes-version "${KUBE_VERSION}" \
+            -strict \
+            -ignore-missing-schemas \
+            -summary \
+            -output pretty \
+            *.yaml

@@ -35,6 +35,7 @@ O2-live-ai-ops 에 머지
 | `00-namespace.yaml` | `o2-dev` 네임스페이스 |
 | `api-deployment.yaml` | api 서비스. **이미지 태그만 CI가 고친다** |
 | `api-service.yaml` | api 서비스의 ClusterIP |
+| `.github/workflows/validate.yml` | `kubeconform -strict` 로 매니페스트 검사 |
 
 파일명은 `<service>-deployment.yaml` 규약을 따른다.
 CI가 `yq` 로 이 경로를 찾아 태그를 고치기 때문이며,
@@ -45,10 +46,17 @@ CI가 `yq` 로 이 경로를 찾아 태그를 고치기 때문이며,
 레플리카 수, 리소스 요청량, 환경변수, probe 설정 같은 것은 여기서 직접 고친다.
 이미지 태그를 제외한 나머지는 전부 사람의 몫이다.
 
+고치면 `validate` 워크플로가 `kubeconform -strict` 로 검사한다.
+`-strict` 는 스키마에 없는 필드를 오류로 본다 — 오타 난 필드는 조용히 무시되어
+"적용은 됐는데 설정이 안 먹는" 상태를 만들기 때문이다.
+
 수정하면 Argo가 180초 안에 반영한다. 되돌리려면 `git revert` 하면 된다 —
 이전 이미지로 롤백하는 방법도 같다.
 
 ## 접근 권한
 
-CI는 **deploy key**로 이 저장소에만 푸시한다.
-그 키는 다른 저장소에서는 쓸 수 없어, 유출되어도 피해가 여기로 한정된다.
+CI는 **fine-grained PAT**(`DEPLOY_REPO_TOKEN`)으로 이 저장소에만 푸시한다.
+범위는 이 저장소 하나, `Contents: Read and write` 뿐이라 유출되어도 피해가 여기로 한정된다.
+deploy key를 쓰려 했으나 org 설정에서 비활성화되어 있었다(앱 저장소 D-006).
+
+**토큰에 만료가 있다.** 만료되면 배포가 인증 오류로 멈춘다.
