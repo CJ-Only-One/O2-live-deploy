@@ -50,9 +50,18 @@ spec:
                 name: o2-db
           # FastAPI/uvicorn은 JVM과 달리 뜨는 데 시간이 안 걸린다.
           # startupProbe 없이도 liveness가 먼저 실패할 일이 없다.
+          #
+          # readiness와 liveness가 보는 것이 다르다.
+          #   readyz  MySQL·Valkey 연결까지 — 의존성이 끊기면 트래픽을 받지 않는다
+          #   health  프로세스 생존만 — 여기서 의존성을 보면 DB 순단에
+          #           전 파드가 재시작 루프에 빠진다
           readinessProbe:
-            httpGet: {path: /api/health, port: http}
+            httpGet: {path: /api/readyz, port: http}
             periodSeconds: 10
+            # 기본값 1초로는 부족하다. readyz의 MySQL·Valkey 연결 타임아웃이
+            # 각각 2초라, 의존성이 느려지면 응답이 오기 전에 프로브가 먼저
+            # 끊어 파드가 NotReady로 빠진다.
+            timeoutSeconds: 5
           livenessProbe:
             httpGet: {path: /api/health, port: http}
             periodSeconds: 20
