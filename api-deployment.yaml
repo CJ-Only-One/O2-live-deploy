@@ -14,6 +14,16 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: api
+        # 이미지 태그와 같은 커밋 SHA. app.yml의 deploy 잡이 이미지와 함께 갱신한다.
+        #
+        # Pod 템플릿에만 둔다. selector.matchLabels는 생성 후 불변이라
+        # 거기 넣으면 다음 배포부터 apply가 거부된다. Service 셀렉터에 넣어도
+        # 안 된다 — 롤링 중 한쪽 파드 집합이 통째로 엔드포인트에서 빠진다.
+        #
+        # 값을 env에 직접 적지 않고 라벨을 두는 이유는 쓰기 지점을 하나로
+        # 묶기 위해서다. 아래 두 환경변수가 이것을 참조하므로 O2 이벤트의
+        # 버전과 Datadog의 버전이 서로 어긋날 수 없다.
+        app.kubernetes.io/version: 8c55e44789d862520560604a2bc530d757c608f5
     spec:
       # AWS 자격증명은 이 ServiceAccount에 걸린 EKS Pod Identity로 들어온다.
       # 액세스 키를 이미지나 Secret에 넣지 않는다.
@@ -48,6 +58,27 @@ spec:
                 name: o2-data
             - secretRef:
                 name: o2-db
+          # 이벤트 SDK와 Datadog이 읽는 값. 위 ConfigMap과 달리 서비스마다
+          # 달라지는 상수라 여기 직접 적는다.
+          #
+          # 버전은 Pod 템플릿의 라벨에서 가져온다. 두 곳에 SHA를 복사하면
+          # 한쪽만 갱신된 상태가 생길 수 있고, 그러면 이벤트는 v1이라 하고
+          # Datadog은 v2라 하는 상태가 되어 배포 장애 감별이 무너진다.
+          env:
+            - name: O2_SERVICE
+              value: api
+            - name: DD_SERVICE
+              value: api
+            - name: DD_ENV
+              value: dev
+            - name: O2_SERVICE_VERSION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/version']
+            - name: DD_VERSION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/version']
           # FastAPI/uvicorn은 JVM과 달리 뜨는 데 시간이 안 걸린다.
           # startupProbe 없이도 liveness가 먼저 실패할 일이 없다.
           #
