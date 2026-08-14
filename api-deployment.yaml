@@ -15,6 +15,12 @@ spec:
       labels:
         app.kubernetes.io/name: api
     spec:
+      # AWS 자격증명은 이 ServiceAccount에 걸린 EKS Pod Identity로 들어온다.
+      # 액세스 키를 이미지나 Secret에 넣지 않는다.
+      # 연결은 infra/04-platform 의 app_data_access.tf 가 만든다 —
+      # 여기 이름과 그쪽 app_service_accounts 목록이 어긋나면 파드는 정상적으로
+      # 뜨고 SQS 호출에서만 실패한다. 기동이 성공하므로 알아채기 늦다.
+      serviceAccountName: api
       # 종료 신호를 받고 실제로 죽기까지 주는 시간.
       # uvicorn은 SIGTERM을 받으면 새 요청을 안 받고 처리 중인 것만 끝낸다.
       # 그 시간보다 넉넉해야 처리 중 요청이 안 잘린다.
@@ -27,6 +33,21 @@ spec:
           ports:
             - name: http
               containerPort: 8000
+          # 접속 정보는 여기에 적지 않는다. RDS/Valkey 엔드포인트는 데이터 스택을
+          # 다시 만들면 바뀌는데, 매니페스트에 박아두면 그때 조용히 어긋난다.
+          #
+          # o2-data (ConfigMap)  — infra/04-platform 이 03-data 의 remote state에서
+          #                        읽어 만든다. DB/Valkey/SQS 주소가 들어 있다.
+          # o2-db   (Secret)     — RDS가 만들어 Secrets Manager에 넣은 마스터
+          #                        비밀번호를 ESO가 동기화한다. DB_PASSWORD 하나뿐.
+          #
+          # 둘 다 없는 상태로 배포하면 파드는 뜨지만 config.py의 기본값
+          # (localhost:3306)을 보고 DB 연결에서만 실패한다.
+          envFrom:
+            - configMapRef:
+                name: o2-data
+            - secretRef:
+                name: o2-db
           # FastAPI/uvicorn은 JVM과 달리 뜨는 데 시간이 안 걸린다.
           # startupProbe 없이도 liveness가 먼저 실패할 일이 없다.
           readinessProbe:
