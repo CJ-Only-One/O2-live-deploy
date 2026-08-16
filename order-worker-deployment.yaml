@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-worker
+  namespace: o2-dev
+  labels:
+    app.kubernetes.io/name: order-worker
+spec:
+  # 큐 깊이에 따라 늘리는 것이 설계지만(KEDA), 임계값을 정하려면 파드 하나가
+  # 초당 몇 건을 처리하는지 먼저 재야 한다. 그 측정 전에는 숫자가 추측이므로
+  # 1개로 시작한다. KEDA 를 붙일 때는 이 replicas 필드를 제거해야 한다 —
+  # 남겨두면 Argo 의 selfHeal 이 계속 1로 되돌린다.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: order-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: order-worker
+        # 이미지 태그와 같은 커밋 SHA. app.yml의 deploy 잡이 함께 갱신한다.
+        # Pod 템플릿에만 둔다 — selector.matchLabels는 생성 후 불변이다.
+        app.kubernetes.io/version: PLACEHOLDER
+    spec:
+      # SQS 접근 자격증명이 이 ServiceAccount의 EKS Pod Identity로 들어온다.
+      # 이름이 infra/04-platform 의 app_service_accounts 와 어긋나면 파드는
+      # 정상적으로 뜨고 SQS 호출에서만 실패한다.
+      serviceAccountName: order-worker
+      # SIGTERM을 받으면 새 메시지를 받지 않고 처리 중인 배치만 끝낸다.
+      # 롱 폴링이 최대 20초라 그보다 넉넉해야 중간에 잘리지 않는다.
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: order-worker
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/order-worker:PLACEHOLDER
+          # HTTP를 받지 않는다. Service도 Ingress도 없고 포트도 열지 않는다.
+          #
+          # 접속 정보는 여기 적지 않는다. api와 같은 ConfigMap·Secret을 쓴다 —
+          # 워커도 같은 MySQL과 같은 큐를 본다.
+          envFrom:
+            - configMapRef:
+                name: o2-data
+            - secretRef:
+                name: o2-db
+          env:
+            - name: O2_SERVICE
+              value: order-worker
+            - name: DD_SERVICE
+              value: order-worker
+            - name: DD_ENV
+              value: dev
+            - name: O2_SERVICE_VERSION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/version']
+            - name: DD_VERSION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/version']
+          # 프로브를 걸지 않는다. HTTP 엔드포인트가 없고, 큐가 비어 있는 동안
+          # 롱 폴링으로 대기하는 것이 정상 상태다. 프로세스가 죽으면 kubelet이
+          # 재시작한다.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 192Mi
+            limits:
+              memory: 384Mi # CPU limit은 걸지 않는다 — 스로틀링이 처리량을 깎는다
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            # Dockerfile의 USER와 같은 값이어야 한다. 이름으로만 지정하면
+            # kubelet이 root 여부를 검증하지 못해 CreateContainerConfigError로 죽는다.
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            # readOnlyRootFilesystem을 켰으니 쓸 수 있는 임시 공간을 따로 준다.
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
