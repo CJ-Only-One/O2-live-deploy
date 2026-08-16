@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-gateway
+  namespace: o2-dev
+  labels:
+    app.kubernetes.io/name: chat-gateway
+spec:
+  # 계약이 replica 2개를 요구한다. 한 개면 Pub/Sub 팬아웃이 실제로 파드를
+  # 건너가는지 검증할 수 없고, 스케일다운 시 재연결 동작도 시험할 수 없다.
+  # HPA를 붙일 때는 이 필드를 제거해야 한다 — selfHeal이 계속 되돌린다.
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: chat-gateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: chat-gateway
+        # 이미지 태그와 같은 커밋 SHA. app.yml의 deploy 잡이 함께 갱신한다.
+        # Pod 템플릿에만 둔다 — selector.matchLabels는 생성 후 불변이다.
+        app.kubernetes.io/version: PLACEHOLDER
+    spec:
+      serviceAccountName: chat-gateway
+      # close frame을 보내고 15초를 기다린 뒤 종료한다. 그보다 넉넉해야
+      # 드레이닝이 중간에 잘리지 않는다 (architecture.md 9.4-2).
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: chat-gateway
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/chat-gateway:PLACEHOLDER
+          ports:
+            - name: http
+              containerPort: 8080
+          # Valkey 주소가 여기서 온다. Pub/Sub 채널이 팬아웃의 전부이므로
+          # 이 연결이 끊기면 파드 간 전달이 멈춘다.
+          envFrom:
+            - configMapRef:
+                name: o2-data
+          env:
+            - name: O2_SERVICE
+              value: chat-gateway
+            - name: DD_SERVICE
+              value: chat-gateway
+            - name: DD_ENV
+              value: dev
+            - name: O2_SERVICE_VERSION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/version']
+            - name: DD_VERSION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/version']
+            # 모르는 event_name이 들어갔을 때 수집단이 어떻게 처리하는지
+            # 확인되기 전까지 꺼둔다 (contracts.md 5.5). 확인되면 여기만 켠다.
+            - name: EMIT_CHAT_EVENTS
+              value: "false"
+          # WebSocket 업그레이드가 아니라 일반 HTTP로 답하는 경로다.
+          # 의존성(Valkey)을 검사하지 않는다 — 여기서 검사하면 Valkey 순단에
+          # 전 파드가 재시작 루프에 빠지고, 그 순간이 재연결 폭풍이다.
+          readinessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              memory: 384Mi # CPU limit은 걸지 않는다 — 스로틀링이 팬아웃 지연을 만든다
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            # Dockerfile의 USER와 같은 값이어야 한다. node 이미지의 기본
+            # node 사용자가 1000번이다.
+            runAsUser: 1000
+            runAsGroup: 1000
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
