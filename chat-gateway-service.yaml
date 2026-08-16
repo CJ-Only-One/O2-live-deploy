@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-gateway
+  namespace: o2-dev
+  labels:
+    app.kubernetes.io/name: chat-gateway
+  annotations:
+    # 이 서비스의 타겟그룹 헬스체크 경로. Ingress 기본값("/")은 frontend용이라
+    # 여기에는 안 맞는다 — WebSocket 업그레이드 경로 말고 /healthz만 HTTP로 답한다.
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+    # 커넥션이 길게 유지되므로 드레이닝을 짧게 잡는다. 파드가 빠질 때
+    # ALB가 새 연결을 안 보내면 되고, 기존 연결은 애플리케이션이 close frame으로
+    # 정리한다.
+    alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=30
+spec:
+  # 셀렉터에 버전 라벨을 넣지 않는다. 롤링 배포 중 한쪽 파드 집합이 통째로
+  # 엔드포인트에서 빠진다.
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: chat-gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

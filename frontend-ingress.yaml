@@ -17,6 +17,13 @@ metadata:
     # 파드가 사라진 뒤에도 ALB가 잠시 보내면 502가 난다.
     # 드레이닝을 짧게 잡아 롤링 배포 중 끊김을 줄인다.
     alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=15
+    # WebSocket 때문에 올린다. 클라이언트 하트비트가 30초인데 기본값이 60초라,
+    # ping 한 번만 놓쳐도 ALB가 커넥션을 끊는다. 주기의 네 배로 둔다
+    # (contracts.md 3.5).
+    #
+    # 이 값은 ALB 단위라 /api·/ 경로에도 함께 적용된다. HTTP 요청은 그보다
+    # 훨씬 짧게 끝나므로 영향이 없다.
+    alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=120
 spec:
   ingressClassName: alb
   rules:
@@ -33,6 +40,15 @@ spec:
             backend:
               service:
                 name: api
+                port:
+                  name: http
+          # WebSocket. ALB는 Upgrade 헤더를 그대로 넘기므로 별도 애노테이션이
+          # 필요 없다.
+          - path: /ws
+            pathType: Prefix
+            backend:
+              service:
+                name: chat-gateway
                 port:
                   name: http
           - path: /
