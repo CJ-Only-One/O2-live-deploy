@@ -79,6 +79,13 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.labels['app.kubernetes.io/version']
+            # 트레이스를 보낼 곳. Datadog 에이전트는 DaemonSet이라 파드와 같은
+            # 노드에 있고, hostPort 8126으로 받는다. 서비스 이름으로 부르면
+            # 다른 노드의 에이전트에 갈 수 있어 트레이스와 노드 지표가 어긋난다.
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
           # FastAPI/uvicorn은 JVM과 달리 뜨는 데 시간이 안 걸린다.
           # startupProbe 없이도 liveness가 먼저 실패할 일이 없다.
           #
