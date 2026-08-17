@@ -20,7 +20,7 @@ spec:
         app.kubernetes.io/name: order-worker
         # 이미지 태그와 같은 커밋 SHA. app.yml의 deploy 잡이 함께 갱신한다.
         # Pod 템플릿에만 둔다 — selector.matchLabels는 생성 후 불변이다.
-        app.kubernetes.io/version: be850cb69942787101f574bcfd6fe0e604e116f9
+        app.kubernetes.io/version: 7d8c7842c1ee955f97c7f730a829c27981afcf19
     spec:
       # SQS 접근 자격증명이 이 ServiceAccount의 EKS Pod Identity로 들어온다.
       # 이름이 infra/04-platform 의 app_service_accounts 와 어긋나면 파드는
@@ -31,7 +31,7 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: order-worker
-          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/order-worker:be850cb69942787101f574bcfd6fe0e604e116f9
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/order-worker:7d8c7842c1ee955f97c7f730a829c27981afcf19
           # HTTP를 받지 않는다. Service도 Ingress도 없고 포트도 열지 않는다.
           #
           # 접속 정보는 여기 적지 않는다. api와 같은 ConfigMap·Secret을 쓴다 —
