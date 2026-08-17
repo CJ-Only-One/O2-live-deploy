@@ -51,6 +51,11 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.labels['app.kubernetes.io/version']
+            # 같은 노드의 에이전트에 보낸다 (api-deployment.yaml 참고).
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
             # 모르는 event_name이 들어갔을 때 수집단이 어떻게 처리하는지
             # 확인되기 전까지 꺼둔다 (contracts.md 5.5). 확인되면 여기만 켠다.
             - name: EMIT_CHAT_EVENTS
