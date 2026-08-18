@@ -41,6 +41,9 @@ spec:
                 name: o2-data
             - secretRef:
                 name: o2-db
+            # 이벤트 SDK의 user_key HMAC salt. api와 같은 값이어야 조인된다.
+            - secretRef:
+                name: o2-events
           env:
             - name: O2_SERVICE
               value: order-worker

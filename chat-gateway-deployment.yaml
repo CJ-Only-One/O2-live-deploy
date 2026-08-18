@@ -36,6 +36,11 @@ spec:
           envFrom:
             - configMapRef:
                 name: o2-data
+            # user_key HMAC salt. 발행 스위치(EMIT_CHAT_EVENTS)와 무관하게
+            # 필요하다 — 접속 시점에 이미 해싱한다 (events.ts hashUserKey).
+            # 값이 api와 다르면 같은 사용자가 다른 키로 갈린다.
+            - secretRef:
+                name: o2-events
           env:
             - name: O2_SERVICE
               value: chat-gateway

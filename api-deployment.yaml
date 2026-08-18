@@ -51,13 +51,19 @@ spec:
           # o2-db   (Secret)     — RDS가 만들어 Secrets Manager에 넣은 마스터
           #                        비밀번호를 ESO가 동기화한다. DB_PASSWORD 하나뿐.
           #
-          # 둘 다 없는 상태로 배포하면 파드는 뜨지만 config.py의 기본값
+          # o2-events (Secret) — 이벤트 SDK가 user_key를 HMAC으로 바꿀 때 쓰는
+          #                       salt. 세 서비스가 같은 값을 봐야 같은 사용자로
+          #                       조인된다. infra/04-platform 의 app_events.tf.
+          #
+          # 셋 다 없는 상태로 배포하면 파드는 뜨지만 config.py의 기본값
           # (localhost:3306)을 보고 DB 연결에서만 실패한다.
           envFrom:
             - configMapRef:
                 name: o2-data
             - secretRef:
                 name: o2-db
+            - secretRef:
+                name: o2-events
           # 이벤트 SDK와 Datadog이 읽는 값. 위 ConfigMap과 달리 서비스마다
           # 달라지는 상수라 여기 직접 적는다.
           #
