@@ -19,7 +19,7 @@ spec:
         app.kubernetes.io/name: chat-gateway
         # 이미지 태그와 같은 커밋 SHA. app.yml의 deploy 잡이 함께 갱신한다.
         # Pod 템플릿에만 둔다 — selector.matchLabels는 생성 후 불변이다.
-        app.kubernetes.io/version: 7d8c7842c1ee955f97c7f730a829c27981afcf19
+        app.kubernetes.io/version: 37459a078394b7d2e836fcd8272952c296e07834
     spec:
       serviceAccountName: chat-gateway
       # close frame을 보내고 15초를 기다린 뒤 종료한다. 그보다 넉넉해야
@@ -27,7 +27,7 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: chat-gateway
-          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/chat-gateway:7d8c7842c1ee955f97c7f730a829c27981afcf19
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/chat-gateway:37459a078394b7d2e836fcd8272952c296e07834
           ports:
             - name: http
               containerPort: 8080
