@@ -20,7 +20,7 @@ spec:
           # app.yml의 deploy 잡이 yq로 이 줄만 갈아끼운다.
           # 처음 값은 공개 이미지다 — 매니페스트가 먼저 머지되고 첫 태그 갱신이
           # 오기 전까지 ImagePullBackOff로 남지 않게 하기 위해서다(testpage와 동일).
-          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/frontend:c39d475854d44f257b1cbba17194c4cb8d7d2e6c
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/frontend:3dd11a8ca04f66b9896111fd45cd64ddf48f76a5
           ports:
             - name: http
               containerPort: 8080
