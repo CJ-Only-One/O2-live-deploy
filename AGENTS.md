@@ -44,6 +44,6 @@ spec:
 
 | 알고 싶은 것 | 위치 (`O2-live-ai-ops`) |
 |---|---|
-| 규약 요약, 문서 지도 | `CLAUDE.md` |
+| 규약 요약, 문서 지도 | `AGENTS.md` |
 | 왜 이렇게 했나 | `docs/decisions.md` (인덱스에서 골라 그 절만) |
 | API·WebSocket 규격 | `docs/contracts.md` |
