@@ -1,0 +1,45 @@
+# RTMP 인제스트용 NLB.
+#
+# ALB 로는 안 된다. ALB 는 HTTP/HTTPS 만 이해하고 RTMP 는 그냥 TCP 다.
+# NLB 는 L4 라 프로토콜을 안 따진다.
+#
+# 이 Service 하나가 AWS 에 NLB 를 만든다 — Terraform 스택이 따로 없는
+# 이유다. 클러스터에 이미 있는 AWS Load Balancer Controller 가 만든다.
+# 주소는 만들어진 뒤 `kubectl get svc mediamtx-rtmp` 의 EXTERNAL-IP 에 뜬다.
+#
+# OBS 설정 (mediamtx-config.yaml 의 경로 규칙 참고):
+#   서버       rtmp://<EXTERNAL-IP>:1935/hls
+#   스트림 키   bc_1042
+#   사용자      publisher / 비밀번호는 Secret o2-media
+apiVersion: v1
+kind: Service
+metadata:
+  name: mediamtx-rtmp
+  namespace: o2-dev
+  labels:
+    app.kubernetes.io/name: mediamtx
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: external
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    # instance 모드는 NodePort 를 한 번 더 거친다. VPC CNI 가 파드에 VPC IP 를
+    # 주므로 NLB 가 파드로 바로 보낼 수 있다 (frontend-ingress.yaml 과 같은 이유).
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: ip
+    # 송출은 한 연결을 길게 유지한다. 기본 350초 유휴 타임아웃에 걸리면
+    # 방송 중에 끊긴다.
+    service.beta.kubernetes.io/aws-load-balancer-target-group-attributes: deregistration_delay.timeout_seconds=15
+spec:
+  type: LoadBalancer
+  # 방어선은 MediaMTX 의 publish 비밀번호 하나다. 이 포트 자체는 열려 있다.
+  #
+  # IP 로도 좁히려면 아래를 켠다. 다만 작업 장소가 바뀔 때마다 고쳐야 하고,
+  # 빈 목록(`[]`)은 막는 것이 아니라 전부 여는 것이라 그렇게 두지 않는다.
+  #
+  #   loadBalancerSourceRanges:
+  #     - "<공인 IP>/32"    # curl -s ifconfig.me
+  selector:
+    app.kubernetes.io/name: mediamtx
+  ports:
+    - name: rtmp
+      port: 1935
+      targetPort: rtmp
+      protocol: TCP
