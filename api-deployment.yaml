@@ -23,7 +23,7 @@ spec:
         # 값을 env에 직접 적지 않고 라벨을 두는 이유는 쓰기 지점을 하나로
         # 묶기 위해서다. 아래 두 환경변수가 이것을 참조하므로 O2 이벤트의
         # 버전과 Datadog의 버전이 서로 어긋날 수 없다.
-        app.kubernetes.io/version: d39fbaf20eb009ca1329fdf7c8dad4dcb73a4cd7
+        app.kubernetes.io/version: 505581114c6e9d658ed03be5fa76fefcf4f11d31
     spec:
       # AWS 자격증명은 이 ServiceAccount에 걸린 EKS Pod Identity로 들어온다.
       # 액세스 키를 이미지나 Secret에 넣지 않는다.
@@ -39,7 +39,7 @@ spec:
         - name: api
           # app.yml의 deploy 잡이 yq로 이 줄만 갈아끼운다.
           # 태그는 커밋 SHA다. latest를 쓰면 롤백이 불가능해진다.
-          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/api:d39fbaf20eb009ca1329fdf7c8dad4dcb73a4cd7
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/api:505581114c6e9d658ed03be5fa76fefcf4f11d31
           ports:
             - name: http
               containerPort: 8000
