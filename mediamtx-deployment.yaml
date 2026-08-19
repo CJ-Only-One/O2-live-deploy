@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mediamtx
+  namespace: o2-dev
+  labels:
+    app.kubernetes.io/name: mediamtx
+spec:
+  # 1개 고정이다. HA 가 없다 — 죽으면 재시작까지 방송이 멈춘다.
+  # 목업 재생이라 감수하며, 오히려 Phase 7 의 진단 대상이 하나 늘어난다
+  # (architecture.md 2.2). 실제 방송이 요구되면 이중화가 아니라 관리형으로
+  # 되돌아가는 것이 맞다.
+  replicas: 1
+  # RTMP 연결은 파드 하나가 들고 있다. 롤링으로 새 파드를 먼저 띄우면
+  # 옛 파드가 포트를 쥔 채라 송출이 두 곳으로 갈린다.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mediamtx
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mediamtx
+    spec:
+      # 송출이 끊기면 시청자 화면이 멈춘다. 종료 전에 진행 중인 세그먼트
+      # 전송을 끝낼 시간을 준다.
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: mediamtx
+          # 커밋 SHA 대신 버전 태그를 쓴다. 우리가 빌드하는 이미지가 아니라
+          # app.yml 의 태그 갱신 대상이 아니다. latest 는 쓰지 않는다 —
+          # 조용히 올라가면 설정 키 이름이 바뀌어도 알 수 없다.
+          image: bluenviron/mediamtx:1.20.1
+          ports:
+            - name: rtmp
+              containerPort: 1935
+            - name: hls
+              containerPort: 8888
+          env:
+            # 송출 비밀번호. ConfigMap 의 빈 pass 를 덮는다.
+            # 리스트의 두 번째(0-based 1) 사용자가 publisher 다.
+            - name: MTX_AUTHINTERNALUSERS_1_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: o2-media
+                  key: MTX_PUBLISH_PASS
+          # HLS 는 파일이지만 디스크에 안 쓴다. hlsDirectory 가 비어 있으면
+          # 메모리에 들고 있다가 요청에 응답한다. 그래서 볼륨이 필요 없고
+          # readOnlyRootFilesystem 을 켤 수 있다.
+          volumeMounts:
+            - name: config
+              mountPath: /mediamtx.yml
+              subPath: mediamtx.yml
+              readOnly: true
+          # readiness 와 liveness 가 보는 것이 다르다 (architecture.md 9.4).
+          #   readiness  HLS 포트가 응답하는가 — 트래픽을 받을 수 있는지
+          #   liveness   프로세스가 살아 있는가
+          #
+          # 송출 여부를 프로브에 넣지 않는다. OBS 를 끄면 파드가 재시작
+          # 루프에 빠지고, 그때 RTMP 포트가 계속 끊겨 재송출도 막힌다.
+          readinessProbe:
+            tcpSocket: {port: hls}
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: {port: rtmp}
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              # 트랜스코딩을 하지 않는다. 들어온 스트림을 그대로 세그먼트로
+              # 자르기만 하므로 메모리는 세그먼트 버퍼 크기에 비례한다.
+              memory: 512Mi # CPU limit 은 걸지 않는다 — 스로틀링이 세그먼트 지연을 만든다
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            # 숫자여야 한다. 이름으로 두면 kubelet 이 root 여부를 검증하지
+            # 못해 CreateContainerConfigError 로 죽는다 (decisions.md 함정).
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: config
+          configMap:
+            name: mediamtx-config

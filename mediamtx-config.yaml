@@ -1,0 +1,84 @@
+# MediaMTX 설정.
+#
+# 비밀번호는 여기 없다. publisher 의 pass 는 Secret o2-media 가 환경변수로
+# 덮는다 (mediamtx-deployment.yaml 의 MTX_AUTHINTERNALUSERS_1_PASS).
+# MediaMTX 는 모든 설정을 MTX_<대문자경로> 로 덮을 수 있고, 리스트는
+# _<번호>_ 를 끼워 넣는다.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mediamtx-config
+  namespace: o2-dev
+  labels:
+    app.kubernetes.io/name: mediamtx
+data:
+  # ── 경로 규칙 ────────────────────────────────────────────
+  # 스트림 이름을 `hls/<broadcast_id>` 로 둔다.
+  #
+  #   OBS 서버      rtmp://<NLB>:1935/hls
+  #   OBS 스트림 키  bc_1042
+  #   → MediaMTX 경로  hls/bc_1042
+  #   → 재생 주소      http://<ALB>/hls/bc_1042/index.m3u8
+  #
+  # ALB 는 경로를 벗기지 않고 그대로 넘긴다. 그래서 접두사 `hls` 가 스트림
+  # 이름의 일부여야 한다. `live` 를 쓰면 프론트의 /live/:broadcastId 라우트와
+  # 겹쳐서 SPA 가 안 뜬다.
+  mediamtx.yml: |
+    logLevel: info
+    logDestinations: [stdout]
+
+    # 안 쓰는 프로토콜은 끈다. 켜두면 포트가 열리고 그만큼 표면이 넓어진다.
+    # 우리 경로는 RTMP 로 받아 HLS 로 내보내는 것 하나뿐이다.
+    rtsp: false
+    webrtc: false
+    srt: false
+
+    # ── 인제스트 (OBS) ──────────────────────────────────────
+    rtmp: true
+    rtmpAddress: :1935
+    rtmpEncryption: "no"
+
+    # ── 배포 (브라우저) ─────────────────────────────────────
+    hls: true
+    hlsAddress: :8888
+
+    # lowLatency 를 쓰지 않는다. 부분 세그먼트를 요구하고 플레이리스트
+    # 요청을 블로킹해서, 파일 단위로 캐싱하는 CDN 구조와 맞지 않는다.
+    # 목업 재생이라 6~10초 지연으로 충분하다 (architecture.md 2.2).
+    hlsVariant: mpegts
+    hlsSegmentDuration: 2s
+    hlsSegmentCount: 7
+
+    # 프론트와 같은 ALB 뒤에 있어 동일 출처지만, 나중에 CloudFront 를
+    # 앞에 붙이면 출처가 갈린다. 그때 이 값이 없으면 재생이 막힌다.
+    hlsAllowOrigins: ["*"]
+
+    # 송출이 끊긴 뒤 먹서를 얼마나 살려둘지. 짧으면 잠깐의 끊김에도
+    # 플레이리스트가 사라져 플레이어가 404 를 받는다.
+    hlsMuxerCloseAfter: 60s
+
+    # ── 헬스체크용 API ──────────────────────────────────────
+    # 파드 안에서만 부른다. authInternalUsers 가 localhost 에 api 권한을 준다.
+    api: true
+    apiAddress: 127.0.0.1:9997
+
+    # ── 권한 ────────────────────────────────────────────────
+    # 시청은 공개, 송출은 키가 있어야 한다. 막지 않으면 NLB 주소를 아는
+    # 누구나 우리 방송으로 송출할 수 있다.
+    authInternalUsers:
+      - user: any
+        permissions:
+          - action: read
+          - action: playback
+
+      # pass 는 비워 둔다. 환경변수가 덮는다.
+      - user: publisher
+        pass: ""
+        permissions:
+          - action: publish
+
+      # 파드 안에서 도는 프로브용.
+      - user: any
+        ips: ["127.0.0.1", "::1"]
+        permissions:
+          - action: api
