@@ -6,6 +6,16 @@ metadata:
   namespace: o2-dev
   labels:
     app.kubernetes.io/name: mediamtx
+  annotations:
+    # ALB 헬스체크. Ingress 가 아니라 여기에 둔다 — Ingress 에 두면 ALB 의
+    # 모든 대상 그룹(api·chat-gateway·frontend)에 함께 적용되어, 그쪽의
+    # 404 까지 정상으로 쳐서 장애 감지가 무뎌진다.
+    #
+    # MediaMTX 는 `/` 에 404 를 준다. 송출이 없으면 어떤 경로도 200 을 주지
+    # 않으므로 "살아 있으면 무엇이든 답한다" 를 기준으로 삼는다. 404 도
+    # 프로세스가 답했다는 증거다. 이대로 두면 대상이 영영 unhealthy 라
+    # /hls 요청이 502 로 막힌다.
+    alb.ingress.kubernetes.io/success-codes: 200-404
 spec:
   type: ClusterIP
   selector:
