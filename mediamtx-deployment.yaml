@@ -45,6 +45,17 @@ spec:
                 secretKeyRef:
                   name: o2-media
                   key: MTX_PUBLISH_PASS
+            # CDN 판정용. CloudFront 가 오리진 요청에 Authorization: Bearer 로
+            # 이 값을 붙이면 시청자별 세션 ID 를 주소에 붙이지 않는다.
+            #
+            # 없으면 CloudFront 가 세그먼트를 시청자마다 다른 객체로 보고
+            # 캐시가 한 번도 안 맞는다. **재생은 되므로 조용히 비싸진다**
+            # (docs/decisions.md D-038).
+            - name: MTX_HLSCDNSECRET
+              valueFrom:
+                secretKeyRef:
+                  name: o2-media
+                  key: MTX_HLSCDNSECRET
           # HLS 는 파일이지만 디스크에 안 쓴다. hlsDirectory 가 비어 있으면
           # 메모리에 들고 있다가 요청에 응답한다. 그래서 볼륨이 필요 없고
           # readOnlyRootFilesystem 을 켤 수 있다.
