@@ -14,6 +14,10 @@ metadata:
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
     alb.ingress.kubernetes.io/healthcheck-path: /
+    # MediaMTX 는 `/` 에 404 를 준다. 기본 헬스체크 경로로는 대상이 영영
+    # unhealthy 라 /hls 요청이 502 로 막힌다. 살아 있으면 무엇이든 답하는
+    # 응답을 성공으로 친다 — 404 도 "프로세스가 답했다" 는 증거다.
+    alb.ingress.kubernetes.io/success-codes: 200-404
     # 파드가 사라진 뒤에도 ALB가 잠시 보내면 502가 난다.
     # 드레이닝을 짧게 잡아 롤링 배포 중 끊김을 줄인다.
     alb.ingress.kubernetes.io/target-group-attributes: deregistration_delay.timeout_seconds=15
