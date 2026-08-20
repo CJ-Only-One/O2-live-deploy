@@ -61,10 +61,16 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.hostIP
-            # 모르는 event_name이 들어갔을 때 수집단이 어떻게 처리하는지
-            # 확인되기 전까지 꺼둔다 (contracts.md 5.5). 확인되면 여기만 켠다.
+            # contracts.md 5.5의 확인이 끝나 켠다. Firehose(o2-business-to-s3)는
+            # 동적 파티셔닝도 Lambda 변환도 꺼져 있고 파티션이 시각 기준이라,
+            # 모르는 event_name이 들어와도 원본 그대로 적재되고 같은 배치의
+            # 다른 이벤트에 영향을 주지 않는다.
+            #
+            # ConfigMap o2-data에도 같은 키가 있다(04-platform이 넣는다). 여기
+            # env가 그것을 덮으므로 **끄려면 이 줄을 고쳐야 한다** — Terraform만
+            # 바꾸면 파드 안에서는 안 바뀐다.
             - name: EMIT_CHAT_EVENTS
-              value: "false"
+              value: "true"
           # WebSocket 업그레이드가 아니라 일반 HTTP로 답하는 경로다.
           # 의존성(Valkey)을 검사하지 않는다 — 여기서 검사하면 Valkey 순단에
           # 전 파드가 재시작 루프에 빠지고, 그 순간이 재연결 폭풍이다.
