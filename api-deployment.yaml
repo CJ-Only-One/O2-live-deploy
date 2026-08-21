@@ -57,6 +57,20 @@ spec:
           labelSelector:
             matchLabels:
               app.kubernetes.io/part-of: o2
+        # 위 제약은 o2-dev 파드 **전체**를 3/3 으로 가를 뿐이라, 그 안에서
+        # 같은 서비스의 두 파드가 한 노드에 붙어도 조건을 만족한다. 실제로
+        # 2026-08-21 머지 직후 chat-gateway 2개가 같은 노드에 몰렸다.
+        #
+        # replicas 2 를 두는 이유가 노드 장애를 견디는 것이므로 그러면 의미가
+        # 없다. 부하 측정에서도 두 파드가 같은 2 vCPU 를 나눠 쓰면 파드당
+        # 계수가 오염된다 (measurements.md M-010). 자기 서비스 기준을 하나 더
+        # 건다 — 두 제약은 AND 로 걸린다.
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: api
       # AWS 자격증명은 이 ServiceAccount에 걸린 EKS Pod Identity로 들어온다.
       # 액세스 키를 이미지나 Secret에 넣지 않는다.
       # 연결은 infra/04-platform 의 app_data_access.tf 가 만든다 —
