@@ -22,7 +22,27 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: mediamtx
+        app.kubernetes.io/part-of: o2
     spec:
+      # 노드그룹이 교체되면 파드가 한꺼번에 Pending 이 됐다가 배치된다. 그때 먼저
+      # Ready 된 노드로 전부 쏠리고, 쿠버네티스는 나중에 뜬 노드로 **재분배하지
+      # 않는다.** 2026-08-21 에 그 쏠림으로 노드 하나가 메모리 94% 가 되어
+      # Datadog DaemonSet 이 Pending 으로 남았다 (measurements.md M-010).
+      #
+      # `app.kubernetes.io/name` 이 아니라 `part-of` 로 묶는 이유는, 서비스마다
+      # 따로 흩으면 replicas 1 짜리 넷이 같은 노드에 몰려도 각자 제약을 만족해
+      # 아무것도 막지 못하기 때문이다. o2-dev 파드 전체를 한 덩어리로 본다.
+      #
+      # DoNotSchedule 이어도 노드가 하나만 남으면 도메인이 하나라 skew 가 0 이라
+      # 스케줄을 막지 않는다. 이미 떠 있는 파드를 옮기지는 않으므로, 노드를
+      # 추가한 뒤에는 `kubectl rollout restart deploy -n o2-dev` 가 필요하다.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: o2
       # 송출이 끊기면 시청자 화면이 멈춘다. 종료 전에 진행 중인 세그먼트
       # 전송을 끝낼 시간을 준다.
       terminationGracePeriodSeconds: 30
