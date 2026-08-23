@@ -15,6 +15,19 @@ spec:
       app.kubernetes.io/name: chat-gateway
   template:
     metadata:
+      annotations:
+        # Karpenter 가 이 파드를 옮기지 못하게 한다. 노드를 통합·만료로 정리할 때
+        # 파드를 다른 노드로 옮기는데, chat-gateway 가 옮겨지면 그 파드가 들고
+        # 있던 WebSocket 연결이 전부 끊긴다. 4,000명이 동시에 재연결하면 그것이
+        # 곧 장애다 (architecture.md 9.3).
+        #
+        # NodePool 쪽에서도 consolidationPolicy: WhenEmpty 와 expireAfter: Never 로
+        # 막아 두었다. 이건 그 설정이 바뀌거나 다른 NodePool 이 생겼을 때를 위한
+        # 이중 방어다 — 파드 자신이 들고 있으므로 노드 설정과 무관하게 유지된다.
+        #
+        # 비우려면 사람이 창을 잡고 `kubectl drain` 한다. graceful shutdown 이
+        # close frame 을 보내고 15초 기다리므로(9.4-2) 피해가 최소화된다.
+        karpenter.sh/do-not-disrupt: "true"
       labels:
         app.kubernetes.io/name: chat-gateway
         app.kubernetes.io/part-of: o2
