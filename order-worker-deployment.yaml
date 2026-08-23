@@ -87,10 +87,18 @@ spec:
           # 프로브를 걸지 않는다. HTTP 엔드포인트가 없고, 큐가 비어 있는 동안
           # 롱 폴링으로 대기하는 것이 정상 상태다. 프로세스가 죽으면 kubelet이
           # 재시작한다.
+          # **requests 는 실사용에 맞춰야 한다.** 스케줄러도 Karpenter 도 이
+          # 숫자만 보고 배치·구매를 정하기 때문이다. 실사용보다 작게 적으면
+          # 파드는 다 뜨는데 노드 CPU 가 마르고, Pending 이 안 생기니 Karpenter
+          # 는 노드가 필요한 줄도 모른다. 2026-08-23 에 8 파드가 6 파드보다
+          # 느려진 것이 그것이다 (measurements.md M-013).
+          #
+          # HPA·KEDA 의 targetCPUUtilization 도 requests 대비 퍼센트다.
+          # 50m 을 적고 200m 을 쓰면 400% 라 스케일러가 처음부터 최대치로 튄다.
           resources:
             requests:
-              cpu: 50m
-              memory: 192Mi
+              cpu: 250m # 실측 200~220m (M-013) + 여유
+              memory: 192Mi # 실측 89Mi. 이미 충분하다
             limits:
               memory: 384Mi # CPU limit은 걸지 않는다 — 스로틀링이 처리량을 깎는다
           securityContext:
