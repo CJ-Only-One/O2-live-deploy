@@ -1,0 +1,76 @@
+# order-worker 를 SQS 큐 길이로 늘린다.
+#
+# **2차 보정이지 주력이 아니다.** 반응에 43~63초가 걸리는데 방송 시작 스파이크는
+# 30초 안에 끝난다. 주력은 큐시트 기반 사전 확장이고(D-041), 이것은 예상보다
+# 크거나 오래 지속되는 부하를 받는다.
+#
+# KEDA 는 HPA 를 대체하지 않고 **HPA 를 만들어 쓴다.** 여기서 `keda-hpa-order-worker`
+# 가 생긴다. 그 HPA 를 직접 고치면 KEDA 가 되돌리므로 이 파일을 고친다. 같은
+# Deployment 에 HPA 를 따로 만들면 둘이 싸운다.
+#
+# **order-worker-deployment.yaml 에서 replicas 필드를 지웠다.** 남겨두면 KEDA 가
+# 늘리고 Argo 의 selfHeal 이 되돌리기를 무한 반복한다 — 에러가 안 나서 알아채기
+# 늦다 (D-004, D-041).
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: order-worker
+  namespace: o2-dev
+  labels:
+    app.kubernetes.io/name: order-worker
+    app.kubernetes.io/part-of: o2
+spec:
+  scaleTargetRef:
+    name: order-worker
+
+  # 0 으로 줄이지 않는다. 콜드 스타트가 스파이크와 겹치면 사전 확장의 이점이
+  # 사라진다. 유휴 파드 하나는 1m/91Mi 다 (measurements.md M-014).
+  minReplicaCount: 1
+
+  # **한계가 아니라 목표에서 나온 값이다.** 파드당 49 msg/s 로 12까지 선형인
+  # 것을 쟀고(M-014), 그 위는 재지 않았으므로 쓰지 않는다. 축소 목표가
+  # 240 msg/s 이므로(architecture.md 6.2) 12는 2.4배 여유다.
+  maxReplicaCount: 12
+
+  # HPA 기본 15초보다 길게 둔다. 큐 길이는 튀는 값이라 15초마다 반응하면
+  # 늘렸다 줄였다를 반복한다.
+  pollingInterval: 30
+
+  # 큐가 빈 뒤 이만큼 지나야 줄인다. 방송 중 반복 축소를 막는다.
+  cooldownPeriod: 300
+
+  triggers:
+    - type: aws-sqs-queue
+      metadata:
+        queueURL: https://sqs.ap-northeast-2.amazonaws.com/066107819912/o2-dev-order
+        awsRegion: ap-northeast-2
+
+        # **파드당 목표 큐 길이다.** msg/s 가 아니다.
+        #   queueLength = 파드당 처리량 x 허용 지연 = 49 x 30 = 1,470 -> 1,200
+        # 스파이크 30초면 큐에 7,200건이 쌓이고 ceil(7200/1200) = 6 파드가 된다.
+        queueLength: "1200"
+
+        # in-flight 를 큐 길이에 포함한다. 기본값에 기대지 않고 적는다 —
+        # 빠지면 워커가 받아간 메시지가 안 세어져, 처리 중인데 다 뺀 것으로
+        # 보고 너무 일찍 줄인다.
+        scaleOnInFlight: "true"
+      authenticationRef:
+        name: order-worker-sqs
+---
+# KEDA 오퍼레이터 자신의 EKS Pod Identity 를 쓴다. 역할·association 은
+# infra/04-platform/keda.tf 가 만든다 (`o2-dev-keda`, sqs:GetQueueAttributes).
+#
+# 워커의 역할을 빌려 쓰는 길(identityOwner: workload)은 택하지 않았다 — 이
+# 클러스터는 IRSA 가 아니라 Pod Identity 라 그 경로가 확실하지 않고, 틀리면
+# 파드는 정상적으로 뜨고 스케일링만 조용히 안 된다.
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: order-worker-sqs
+  namespace: o2-dev
+spec:
+  podIdentity:
+    provider: aws
+    # `keda` = 오퍼레이터 자신의 자격증명. `workload` 는 대상 파드의 것을 쓰는데,
+    # 이 클러스터에서는 확실하지 않아 택하지 않았다 (위 주석).
+    identityOwner: keda

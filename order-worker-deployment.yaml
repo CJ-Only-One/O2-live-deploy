@@ -6,11 +6,10 @@ metadata:
   labels:
     app.kubernetes.io/name: order-worker
 spec:
-  # 큐 깊이에 따라 늘리는 것이 설계지만(KEDA), 임계값을 정하려면 파드 하나가
-  # 초당 몇 건을 처리하는지 먼저 재야 한다. 그 측정 전에는 숫자가 추측이므로
-  # 1개로 시작한다. KEDA 를 붙일 때는 이 replicas 필드를 제거해야 한다 —
-  # 남겨두면 Argo 의 selfHeal 이 계속 1로 되돌린다.
-  replicas: 1
+  # **replicas 를 적지 않는다.** order-worker-scaledobject.yaml 의 KEDA 가
+  # 파드 수를 소유한다. 여기 적어두면 KEDA 가 늘리고 Argo 의 selfHeal 이
+  # 되돌리기를 무한 반복하는데, 양쪽 다 자기 일을 정상적으로 했다고만 로그를
+  # 남겨 알아채기 늦다 (D-004, D-041).
   selector:
     matchLabels:
       app.kubernetes.io/name: order-worker
@@ -91,13 +90,13 @@ spec:
           # 숫자만 보고 배치·구매를 정하기 때문이다. 실사용보다 작게 적으면
           # 파드는 다 뜨는데 노드 CPU 가 마르고, Pending 이 안 생기니 Karpenter
           # 는 노드가 필요한 줄도 모른다. 2026-08-23 에 8 파드가 6 파드보다
-          # 느려진 것이 그것이다 (measurements.md M-013).
+          # 느려진 것이 그것이다 (measurements.md M-014).
           #
           # HPA·KEDA 의 targetCPUUtilization 도 requests 대비 퍼센트다.
           # 50m 을 적고 200m 을 쓰면 400% 라 스케일러가 처음부터 최대치로 튄다.
           resources:
             requests:
-              cpu: 250m # 실측 200~220m (M-013) + 여유
+              cpu: 250m # 실측 200~220m (M-014) + 여유
               memory: 192Mi # 실측 89Mi. 이미 충분하다
             limits:
               memory: 384Mi # CPU limit은 걸지 않는다 — 스로틀링이 처리량을 깎는다
