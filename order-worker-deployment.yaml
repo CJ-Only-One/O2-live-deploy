@@ -83,6 +83,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.hostIP
+            - name: O2_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: DD_TAGS
+              value: "pod_name:$(O2_POD_NAME)"
           # 프로브를 걸지 않는다. HTTP 엔드포인트가 없고, 큐가 비어 있는 동안
           # 롱 폴링으로 대기하는 것이 정상 상태다. 프로세스가 죽으면 kubelet이
           # 재시작한다.
