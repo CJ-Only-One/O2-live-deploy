@@ -6,19 +6,20 @@ metadata:
   labels:
     app.kubernetes.io/name: api
 spec:
-  replicas: 1
-  # 새 파드를 먼저 띄우지 않는다. 기본값(maxSurge 25% → 1)이면 롤링 중
-  # 잠시 두 파드가 공존하는데, 384Mi 를 요청하는 파드가 들어갈 자리가
-  # 노드에 없다. t3.small 3대가 이미 73~81% 차 있어 새 파드가 Pending 으로
-  # 멈추고 롤아웃이 영영 끝나지 않는다 — Karpenter 가 없으므로 (D-037)
-  # 노드가 저절로 늘지도 않는다.
+  # 파드가 하나면 "정상 파드 여럿 중 하나만 느리다" 를 만들 수 없다. 정상 파드
+  # 중앙값도, 한 단계 증설도, 파드별 지연 이상치 탐지도 비교 대상이 없어
+  # 성립하지 않는다 (measurements.md M-016).
   #
-  # 대가는 교체 중 수 초의 공백이다. replicas 가 1 이라 어차피 무중단이
-  # 아니었다. 노드가 늘거나 replicas 가 2 이상이 되면 이 블록을 지운다.
-  strategy:
-    rollingUpdate:
-      maxSurge: 0
-      maxUnavailable: 1
+  # 아래 topologySpreadConstraints 의 DoNotSchedule 이 두 파드를 서로 다른
+  # 노드로 가른다. 같은 노드에 몰리면 2 vCPU 를 나눠 써 파드당 계수가 오염된다.
+  replicas: 2
+  # maxSurge 0 을 걸어뒀던 블록을 지운다. 그 블록은 t3.small 3대가 73~81%
+  # 차 있고 Karpenter 가 없던 시점(D-037)의 제약이었고, 주석 자신이 "노드가
+  # 늘거나 replicas 가 2 이상이 되면 이 블록을 지운다" 고 적어뒀다.
+  # 지금은 c6i.large 2대에 Karpenter 가 있다 (D-051).
+  #
+  # 기본값(maxSurge 25% → 1)으로 돌아가므로 롤링 중 파드 하나분(100m·384Mi)
+  # 여유가 필요하다. 2026-08-24 기준 노드 여유는 730m·550m 이라 들어간다.
   selector:
     matchLabels:
       app.kubernetes.io/name: api
