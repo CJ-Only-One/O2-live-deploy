@@ -3,20 +3,26 @@ kind: Service
 metadata:
   name: api
   namespace: o2-dev
-  labels:
-    app.kubernetes.io/name: api
   annotations:
+    # api Deployment(sync-wave -1)가 새 멤버십 라벨로 Ready가 된 뒤 selector를
+    # 전환한다. 한 번 전환한 뒤에도 남겨 두면 이후 변경 순서가 예측 가능하다.
+    argocd.argoproj.io/sync-wave: "0"
     # frontend-ingress가 이 서비스로 라우팅할 때 쓰는 ALB 타겟그룹의
     # 헬스체크 경로. Ingress 기본값("/")은 frontend용이라 api에는 안 맞는다
     # — api는 /api 접두사 밑에만 라우트가 있다.
     alb.ingress.kubernetes.io/healthcheck-path: /api/health
+  labels:
+    app.kubernetes.io/name: api
 spec:
   # ClusterIP로 둔다. 외부 노출은 AWS Load Balancer Controller를 통해
   # Ingress로 붙이는 것이 맞다 — 서비스마다 LoadBalancer 타입을 쓰면
   # 서비스 수만큼 NLB가 생겨 비용이 그대로 늘어난다.
   type: ClusterIP
   selector:
-    app.kubernetes.io/name: api
+    # Deployment selector(app.kubernetes.io/name)와 분리한다. main은 api,
+    # canary는 api-canary라는 서로 다른 selector를 쓰면서도 이 Service에는
+    # 둘 다 들어올 수 있다.
+    o2.cj.io/api-service-member: "true"
   ports:
     - name: http
       port: 80

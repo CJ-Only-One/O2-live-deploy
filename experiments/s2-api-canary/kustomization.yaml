@@ -1,0 +1,35 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# 운영 Deployment를 base로 읽으므로 이미지·환경변수·Secret·ServiceAccount가
+# 항상 main과 같다. 이 디렉터리는 Argo Application의 recurse=false 때문에
+# 자동 배포되지 않으며 loadtest/s2-canary.sh로만 적용한다.
+resources:
+  - ../../api-deployment.yaml
+
+nameSuffix: -canary
+
+patches:
+  - target:
+      group: apps
+      version: v1
+      kind: Deployment
+      # patch는 nameSuffix transformer보다 먼저 적용되므로 base 이름을 고른다.
+      name: api
+    patch: |-
+      - op: replace
+        path: /metadata/labels/app.kubernetes.io~1name
+        value: api-canary
+      - op: replace
+        path: /spec/replicas
+        value: 1
+      - op: replace
+        path: /spec/selector/matchLabels/app.kubernetes.io~1name
+        value: api-canary
+      - op: replace
+        path: /spec/template/metadata/labels/app.kubernetes.io~1name
+        value: api-canary
+      # main api끼리의 DoNotSchedule 제약은 canary 하나에는 필요 없다.
+      # part-of=o2 분산 제약은 남겨 노드 한쪽으로 몰리는 정도만 완화한다.
+      - op: remove
+        path: /spec/template/spec/topologySpreadConstraints/1
