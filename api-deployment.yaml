@@ -148,6 +148,13 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: status.hostIP
+            - name: O2_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            # Kubernetes는 앞에서 선언한 env 값을 $(VAR)로 치환한다.
+            - name: DD_TAGS
+              value: "pod_name:$(O2_POD_NAME)"
             # S3(O2-live-ai-ops docs/scenario-experiment.md 0.7) 조치 실행
             # 라우트(/api/admin/read-path-degraded) 인증 키. Secret은 여기서
             # 안 만든다 — kubectl로 미리 넣어둔 값을 이름으로만 참조한다.
