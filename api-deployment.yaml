@@ -3,6 +3,12 @@ kind: Deployment
 metadata:
   name: api
   namespace: o2-dev
+  annotations:
+    # Service selector를 전용 멤버십 라벨로 옮길 때 Deployment가 먼저 Healthy가
+    # 되어야 한다. Service가 먼저 바뀌면 새 라벨을 가진 Endpoint가 0개인 짧은
+    # 단절이 생긴다. canary도 같은 멤버십 라벨만 공유하고 Deployment selector는
+    # 별도로 가져 컨트롤러끼리 Pod를 뺏지 않는다.
+    argocd.argoproj.io/sync-wave: "-1"
   labels:
     app.kubernetes.io/name: api
 spec:
@@ -28,6 +34,9 @@ spec:
       labels:
         app.kubernetes.io/name: api
         app.kubernetes.io/part-of: o2
+        # Service가 main과 S2 canary를 함께 고르는 전용 라벨. Deployment의
+        # selector에는 넣지 않는다 — canary는 자기 selector를 따로 써야 한다.
+        o2.cj.io/api-service-member: "true"
         # 이미지 태그와 같은 커밋 SHA. app.yml의 deploy 잡이 이미지와 함께 갱신한다.
         #
         # Pod 템플릿에만 둔다. selector.matchLabels는 생성 후 불변이라
