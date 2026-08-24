@@ -19,7 +19,7 @@ spec:
         app.kubernetes.io/name: cue-warmer
         app.kubernetes.io/part-of: o2
         # 이미지 태그와 같은 커밋 SHA. app.yml의 deploy 잡이 함께 갱신한다.
-        app.kubernetes.io/version: e46d68520b1814cae8a7b50bd6efa847c25f217d
+        app.kubernetes.io/version: bf6a40795da1b7487a4cb5d7d225942d7b8c6cde
     spec:
       # api·order-worker 와 같은 이유(api-deployment.yaml 참고) — 노드그룹
       # 교체 시 쏠림을 막기 위해 o2-dev 파드 전체를 part-of 로 묶는다.
@@ -46,7 +46,7 @@ spec:
       containers:
         - name: cue-warmer
           # app.yml의 deploy 잡이 yq로 이 줄만 갈아끼운다. 태그는 커밋 SHA.
-          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/cue-warmer:e46d68520b1814cae8a7b50bd6efa847c25f217d
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/cue-warmer:bf6a40795da1b7487a4cb5d7d225942d7b8c6cde
           # HTTP 서버가 아니라 폴링 루프다 — 포트도 안 열고 probe 도 안 건다.
           # 프로세스가 죽으면 kubelet 이 재시작한다(order-worker 와 같은 이유).
           #
@@ -103,10 +103,10 @@ spec:
             # S1·S2·S3 의 장애 발생 조건과 정면으로 어긋난다.
             - name: SCALE_ENABLED
               value: "false"
-            # 되돌릴 기준값(BASELINE_*_REPLICAS)은 여기 안 적는다.
-            # warmer/config.py 의 기본값과 같은 값이 되어 같은 숫자가 세 곳에
-            # 생기고, 어긋나도 아무도 안 알려준다. 바꿔야 하면 config.py 를
-            # 고친다 — 거기 주석이 api·chat-gateway 매니페스트를 가리킨다.
+              # 되돌릴 기준값(BASELINE_*_REPLICAS)은 여기 안 적는다.
+              # warmer/config.py 의 기본값과 같은 값이 되어 같은 숫자가 세 곳에
+              # 생기고, 어긋나도 아무도 안 알려준다. 바꿔야 하면 config.py 를
+              # 고친다 — 거기 주석이 api·chat-gateway 매니페스트를 가리킨다.
           # 실사용을 재지 않았다. order-worker(M-014 실측 200~220m·89Mi)보다
           # 훨씬 가벼운 일(10초마다 SELECT 하나 + POST 몇 번)이라 그 절반
           # 이하로 잡아둔다 — 배포 뒤 kubectl top pod 로 재서 맞춘다.
