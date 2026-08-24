@@ -112,6 +112,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: DD_ENTITY_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
             - name: DD_TAGS
               value: "pod_name:$(O2_POD_NAME)"
             # contracts.md 5.5의 확인이 끝나 켠다. Firehose(o2-business-to-s3)는
