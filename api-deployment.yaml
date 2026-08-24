@@ -148,6 +148,16 @@ spec:
                 secretKeyRef:
                   name: api-admin
                   key: READ_PATH_DEGRADED_ADMIN_KEY
+            # cue-warmer(O2-live-ai-ops docs/decisions.md D-041) 전용 경로
+            # (/api/internal/warm/{broadcast_id}) 인증 키. 같은 api-admin
+            # Secret의 다른 키를 쓴다 — 이 키가 새면 캐시 워밍만 뚫리고,
+            # 위 키가 새면 S3 조치 노브가 같이 뚫린다. cue-warmer-deployment.yaml
+            # 이 같은 값을 보내는 쪽이다.
+            - name: CUE_WARMER_ADMIN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-admin
+                  key: CUE_WARMER_ADMIN_KEY
           # FastAPI/uvicorn은 JVM과 달리 뜨는 데 시간이 안 걸린다.
           # startupProbe 없이도 liveness가 먼저 실패할 일이 없다.
           #
