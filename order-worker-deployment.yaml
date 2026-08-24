@@ -87,6 +87,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: DD_ENTITY_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
             - name: DD_TAGS
               value: "pod_name:$(O2_POD_NAME)"
           # 프로브를 걸지 않는다. HTTP 엔드포인트가 없고, 큐가 비어 있는 동안

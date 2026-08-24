@@ -152,6 +152,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: DD_ENTITY_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
             # Kubernetes는 앞에서 선언한 env 값을 $(VAR)로 치환한다.
             - name: DD_TAGS
               value: "pod_name:$(O2_POD_NAME)"
