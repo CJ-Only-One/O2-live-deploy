@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cue-warmer
+  namespace: o2-dev
+  labels:
+    app.kubernetes.io/name: cue-warmer
+spec:
+  # 워머는 하나면 된다. 늘려도 좋아지는 게 없다 — 10초마다 큐시트를 읽고
+  # api 를 부르는 폴링이라, 두 개를 띄우면 같은 방송을 두 번 워밍할 뿐이다
+  # (해로운 건 아니지만 낭비다). KEDA·HPA 를 안 붙이는 이유도 같다.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cue-warmer
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: cue-warmer
+        app.kubernetes.io/part-of: o2
+        # 이미지 태그와 같은 커밋 SHA. app.yml의 deploy 잡이 함께 갱신한다.
+        app.kubernetes.io/version: bf6a40795da1b7487a4cb5d7d225942d7b8c6cde
+    spec:
+      # api·order-worker 와 같은 이유(api-deployment.yaml 참고) — 노드그룹
+      # 교체 시 쏠림을 막기 위해 o2-dev 파드 전체를 part-of 로 묶는다.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: o2
+      # 이 ServiceAccount 는 **AWS 자격증명용이 아니다.** cue-warmer 는 AWS
+      # API 를 하나도 안 부른다(MySQL 은 네트워크, api 는 HTTP) — Pod Identity
+      # 가 필요 없어 infra/04-platform 의 app_service_accounts 목록에도 없다.
+      #
+      # 여기 필요한 것은 클러스터 안 권한이다. 사전 확장이 Deployment 의
+      # replicas 를 patch 하므로 그 RBAC 을 이 SA 에 건다 —
+      # infra/04-platform/cue_warmer_access.tf 가 SA·Role·RoleBinding 을
+      # 함께 만든다(enable_cue_warmer_scaling). 그게 꺼져 있으면 SA 가 없어
+      # 파드가 안 뜨므로, 이 필드를 켤 때 그 변수도 같이 켠다.
+      serviceAccountName: cue-warmer
+      # 진행 중인 tick 하나가 MySQL SELECT 한 번 + HTTP POST 몇 번(각 5초
+      # 타임아웃)이라 오래 걸리지 않는다. 넉넉히만 준다.
+      terminationGracePeriodSeconds: 20
+      containers:
+        - name: cue-warmer
+          # app.yml의 deploy 잡이 yq로 이 줄만 갈아끼운다. 태그는 커밋 SHA.
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/cue-warmer:bf6a40795da1b7487a4cb5d7d225942d7b8c6cde
+          # HTTP 서버가 아니라 폴링 루프다 — 포트도 안 열고 probe 도 안 건다.
+          # 프로세스가 죽으면 kubelet 이 재시작한다(order-worker 와 같은 이유).
+          #
+          # DB_HOST·DB_PORT·DB_USER·DB_NAME 은 api 와 같은 ConfigMap 에서
+          # 온다. DB_PASSWORD 는 같은 Secret 에서 — 셋 다 없는 상태로
+          # 배포하면 파드는 뜨지만 config.py 기본값(localhost)을 보고 MySQL
+          # 연결에서만 실패한다.
+          envFrom:
+            - configMapRef:
+                name: o2-data
+            - secretRef:
+                name: o2-db
+          env:
+            - name: O2_SERVICE
+              value: cue-warmer
+            - name: DD_SERVICE
+              value: cue-warmer
+            - name: DD_ENV
+              value: dev
+            - name: O2_SERVICE_VERSION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/version']
+            - name: DD_VERSION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/version']
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            # api Service 의 클러스터 내부 주소. 같은 네임스페이스라 짧은
+            # 이름으로 닿는다(api-service.yaml, ClusterIP, port 80).
+            - name: API_BASE_URL
+              value: http://api
+            # POST /api/internal/warm/{broadcast_id} 인증 키. api-deployment.yaml
+            # 이 검증하는 쪽이고 여기가 보내는 쪽 — 같은 Secret의 같은 키를
+            # 봐야 한다. Secret은 여기서 안 만든다. kubectl로 미리 넣어둔
+            # 값을 이름으로만 참조한다. 값 자체는 git에 올리지 않는다.
+            - name: CUE_WARMER_ADMIN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-admin
+                  key: CUE_WARMER_ADMIN_KEY
+            # 파드 사전 확장. 끄면 캐시 워밍만 돈다.
+            #
+            # 켜기 전에 둘을 확인한다 —
+            #   1) infra/04-platform 의 enable_cue_warmer_scaling (RBAC)
+            #   2) argocd.tf 의 ignoreDifferences 에 api·chat-gateway 가 있는지.
+            #      없으면 워머가 늘린 것을 Argo selfHeal 이 되돌리고 서로
+            #      무한 반복한다. 에러가 안 나서 알아채기 늦다(D-004).
+            #
+            # 시나리오 실험·데모 중에는 끈다. 워머의 목적이 장애를 막는 것이라
+            # S1·S2·S3 의 장애 발생 조건과 정면으로 어긋난다.
+            - name: SCALE_ENABLED
+              value: "false"
+              # 되돌릴 기준값(BASELINE_*_REPLICAS)은 여기 안 적는다.
+              # warmer/config.py 의 기본값과 같은 값이 되어 같은 숫자가 세 곳에
+              # 생기고, 어긋나도 아무도 안 알려준다. 바꿔야 하면 config.py 를
+              # 고친다 — 거기 주석이 api·chat-gateway 매니페스트를 가리킨다.
+          # 실사용을 재지 않았다. order-worker(M-014 실측 200~220m·89Mi)보다
+          # 훨씬 가벼운 일(10초마다 SELECT 하나 + POST 몇 번)이라 그 절반
+          # 이하로 잡아둔다 — 배포 뒤 kubectl top pod 로 재서 맞춘다.
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              memory: 192Mi # CPU limit은 다른 서비스와 같은 이유로 안 건다
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            # Dockerfile의 USER와 같은 값이어야 한다.
+            runAsUser: 10001
+            runAsGroup: 10001
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

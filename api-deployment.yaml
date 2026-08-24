@@ -3,6 +3,12 @@ kind: Deployment
 metadata:
   name: api
   namespace: o2-dev
+  annotations:
+    # Service selector를 전용 멤버십 라벨로 옮길 때 Deployment가 먼저 Healthy가
+    # 되어야 한다. Service가 먼저 바뀌면 새 라벨을 가진 Endpoint가 0개인 짧은
+    # 단절이 생긴다. canary도 같은 멤버십 라벨만 공유하고 Deployment selector는
+    # 별도로 가져 컨트롤러끼리 Pod를 뺏지 않는다.
+    argocd.argoproj.io/sync-wave: "-1"
   labels:
     app.kubernetes.io/name: api
 spec:
@@ -28,6 +34,9 @@ spec:
       labels:
         app.kubernetes.io/name: api
         app.kubernetes.io/part-of: o2
+        # Service가 main과 S2 canary를 함께 고르는 전용 라벨. Deployment의
+        # selector에는 넣지 않는다 — canary는 자기 selector를 따로 써야 한다.
+        o2.cj.io/api-service-member: "true"
         # 이미지 태그와 같은 커밋 SHA. app.yml의 deploy 잡이 이미지와 함께 갱신한다.
         #
         # Pod 템플릿에만 둔다. selector.matchLabels는 생성 후 불변이라
@@ -37,7 +46,7 @@ spec:
         # 값을 env에 직접 적지 않고 라벨을 두는 이유는 쓰기 지점을 하나로
         # 묶기 위해서다. 아래 두 환경변수가 이것을 참조하므로 O2 이벤트의
         # 버전과 Datadog의 버전이 서로 어긋날 수 없다.
-        app.kubernetes.io/version: a17c21ef57f8521da72c577c59e6224f80a5487d
+        app.kubernetes.io/version: e46d68520b1814cae8a7b50bd6efa847c25f217d
     spec:
       # 노드그룹이 교체되면 파드가 한꺼번에 Pending 이 됐다가 배치된다. 그때 먼저
       # Ready 된 노드로 전부 쏠리고, 쿠버네티스는 나중에 뜬 노드로 **재분배하지
@@ -86,7 +95,7 @@ spec:
         - name: api
           # app.yml의 deploy 잡이 yq로 이 줄만 갈아끼운다.
           # 태그는 커밋 SHA다. latest를 쓰면 롤백이 불가능해진다.
-          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/api:a17c21ef57f8521da72c577c59e6224f80a5487d
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/api:e46d68520b1814cae8a7b50bd6efa847c25f217d
           ports:
             - name: http
               containerPort: 8000
@@ -146,6 +155,25 @@ spec:
             # Kubernetes는 앞에서 선언한 env 값을 $(VAR)로 치환한다.
             - name: DD_TAGS
               value: "pod_name:$(O2_POD_NAME)"
+            # S3(O2-live-ai-ops docs/scenario-experiment.md 0.7) 조치 실행
+            # 라우트(/api/admin/read-path-degraded) 인증 키. Secret은 여기서
+            # 안 만든다 — kubectl로 미리 넣어둔 값을 이름으로만 참조한다.
+            # 값 자체는 git에 올리지 않는다.
+            - name: READ_PATH_DEGRADED_ADMIN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-admin
+                  key: READ_PATH_DEGRADED_ADMIN_KEY
+            # cue-warmer(O2-live-ai-ops docs/decisions.md D-041) 전용 경로
+            # (/api/internal/warm/{broadcast_id}) 인증 키. 같은 api-admin
+            # Secret의 다른 키를 쓴다 — 이 키가 새면 캐시 워밍만 뚫리고,
+            # 위 키가 새면 S3 조치 노브가 같이 뚫린다. cue-warmer-deployment.yaml
+            # 이 같은 값을 보내는 쪽이다.
+            - name: CUE_WARMER_ADMIN_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-admin
+                  key: CUE_WARMER_ADMIN_KEY
           # FastAPI/uvicorn은 JVM과 달리 뜨는 데 시간이 안 걸린다.
           # startupProbe 없이도 liveness가 먼저 실패할 일이 없다.
           #
