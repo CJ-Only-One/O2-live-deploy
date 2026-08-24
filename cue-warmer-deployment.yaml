@@ -102,7 +102,7 @@ spec:
             # 시나리오 실험·데모 중에는 끈다. 워머의 목적이 장애를 막는 것이라
             # S1·S2·S3 의 장애 발생 조건과 정면으로 어긋난다.
             - name: SCALE_ENABLED
-              value: "true"
+              value: "false"
               # 되돌릴 기준값(BASELINE_*_REPLICAS)은 여기 안 적는다.
               # warmer/config.py 의 기본값과 같은 값이 되어 같은 숫자가 세 곳에
               # 생기고, 어긋나도 아무도 안 알려준다. 바꿔야 하면 config.py 를
