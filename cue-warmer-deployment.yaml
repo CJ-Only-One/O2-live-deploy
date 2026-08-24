@@ -19,7 +19,7 @@ spec:
         app.kubernetes.io/name: cue-warmer
         app.kubernetes.io/part-of: o2
         # 이미지 태그와 같은 커밋 SHA. app.yml의 deploy 잡이 함께 갱신한다.
-        app.kubernetes.io/version: bf6a40795da1b7487a4cb5d7d225942d7b8c6cde
+        app.kubernetes.io/version: 80b600255c6ef55a5b57fcfe5a2a396858f21c02
     spec:
       # api·order-worker 와 같은 이유(api-deployment.yaml 참고) — 노드그룹
       # 교체 시 쏠림을 막기 위해 o2-dev 파드 전체를 part-of 로 묶는다.
@@ -46,7 +46,7 @@ spec:
       containers:
         - name: cue-warmer
           # app.yml의 deploy 잡이 yq로 이 줄만 갈아끼운다. 태그는 커밋 SHA.
-          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/cue-warmer:bf6a40795da1b7487a4cb5d7d225942d7b8c6cde
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/cue-warmer:80b600255c6ef55a5b57fcfe5a2a396858f21c02
           # HTTP 서버가 아니라 폴링 루프다 — 포트도 안 열고 probe 도 안 건다.
           # 프로세스가 죽으면 kubelet 이 재시작한다(order-worker 와 같은 이유).
           #
