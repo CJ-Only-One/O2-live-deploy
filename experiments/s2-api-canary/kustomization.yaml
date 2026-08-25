@@ -1,9 +1,9 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# 운영 Deployment를 base로 읽으므로 이미지·환경변수·Secret·ServiceAccount가
-# 항상 main과 같다. 이 디렉터리는 Argo Application의 recurse=false 때문에
-# 자동 배포되지 않으며 loadtest/s2-canary.sh로만 적용한다.
+# 정적 설계 검토용 overlay다. 로컬 Git이 Argo가 배포한 revision보다 뒤처질 수
+# 있으므로 실제 S2 주입은 이 파일을 직접 apply하지 않고, 클러스터의 현재 main을
+# 원본으로 쓰는 O2-live-ai-ops/loadtest/s2-canary.sh로만 수행한다.
 resources:
   - ../../api-deployment.yaml
 
