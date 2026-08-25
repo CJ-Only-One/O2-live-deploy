@@ -46,6 +46,17 @@ spec:
           labelSelector:
             matchLabels:
               app.kubernetes.io/name: frontend
+          # 롤링 중에는 구 ReplicaSet 파드까지 세어 제약이 무력해진다.
+          # DoNotSchedule 은 스케줄되는 순간에만 판정하는데, 구 파드가 아직
+          # 남아 있는 상태에서는 새 파드를 어느 AZ 에 놓아도 skew 가 1 이라
+          # 둘 다 통과한다. 그렇게 새 파드 둘이 같은 AZ 로 간 뒤 구 파드가
+          # 빠지면 결과만 쏠린다 — 각 단계는 제약을 지켰는데 최종 상태가
+          # 어긋난다. 2026-08-25 에 api 두 파드가 그렇게 2a 로 몰렸다.
+          #
+          # pod-template-hash 를 세는 기준에 넣으면 같은 ReplicaSet 파드끼리만
+          # 비교하므로 새 파드 둘이 서로를 보고 갈라진다.
+          matchLabelKeys:
+            - pod-template-hash
       containers:
         - name: frontend
           # app.yml의 deploy 잡이 yq로 이 줄만 갈아끼운다.
