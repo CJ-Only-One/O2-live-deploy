@@ -17,7 +17,6 @@ metadata:
     # 애노테이션이 새 구조로 갈리므로 뒤에는 없어도 되지만, 같은 실수를 다시
     # 막아주므로 남겨 둔다.
     argocd.argoproj.io/sync-options: ServerSideApply=true
-  annotations:
     # Service selector를 전용 멤버십 라벨로 옮길 때 Deployment가 먼저 Healthy가
     # 되어야 한다. Service가 먼저 바뀌면 새 라벨을 가진 Endpoint가 0개인 짧은
     # 단절이 생긴다. canary도 같은 멤버십 라벨만 공유하고 Deployment selector는
