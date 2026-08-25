@@ -6,7 +6,9 @@ metadata:
   labels:
     app.kubernetes.io/name: frontend
 spec:
-  replicas: 1
+  # 시청자가 방송에 들어오는 입구다. 하나면 그 노드가 죽는 동안 방송이 살아
+  # 있어도 아무도 못 들어온다. 정적 페이지라 상태가 없어 늘리는 데 제약이 없다.
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: frontend
@@ -35,6 +37,15 @@ spec:
           labelSelector:
             matchLabels:
               app.kubernetes.io/part-of: o2
+        # replicas 2 를 둔 이유가 노드 장애를 견디는 것이므로 AZ 로 가른다.
+        # topologyKey 가 위와 달라야 한다 — 같은 키면 배열 merge 로 두 항목이
+        # 하나가 되면서 DoNotSchedule 이 사라진다.
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: frontend
       containers:
         - name: frontend
           # app.yml의 deploy 잡이 yq로 이 줄만 갈아끼운다.
