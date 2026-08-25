@@ -59,7 +59,7 @@ spec:
         # 값을 env에 직접 적지 않고 라벨을 두는 이유는 쓰기 지점을 하나로
         # 묶기 위해서다. 아래 두 환경변수가 이것을 참조하므로 O2 이벤트의
         # 버전과 Datadog의 버전이 서로 어긋날 수 없다.
-        app.kubernetes.io/version: b14699eee7ec7bba1298e43ce68d70def2074fe1
+        app.kubernetes.io/version: 48ce9b046aec92e6a115bb5885df1a211a1019a5
     spec:
       # 노드그룹이 교체되면 파드가 한꺼번에 Pending 이 됐다가 배치된다. 그때 먼저
       # Ready 된 노드로 전부 쏠리고, 쿠버네티스는 나중에 뜬 노드로 **재분배하지
@@ -123,7 +123,7 @@ spec:
         - name: api
           # app.yml의 deploy 잡이 yq로 이 줄만 갈아끼운다.
           # 태그는 커밋 SHA다. latest를 쓰면 롤백이 불가능해진다.
-          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/api:b14699eee7ec7bba1298e43ce68d70def2074fe1
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/api:48ce9b046aec92e6a115bb5885df1a211a1019a5
           ports:
             - name: http
               containerPort: 8000
