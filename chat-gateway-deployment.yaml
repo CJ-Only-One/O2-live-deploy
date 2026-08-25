@@ -3,6 +3,20 @@ kind: Deployment
 metadata:
   name: chat-gateway
   namespace: o2-dev
+  annotations:
+    # 이 리소스만 Server-Side Apply 로 동기화한다.
+    #
+    # 이전 매니페스트가 topologySpreadConstraints 두 항목에 같은 topologyKey
+    # (kubernetes.io/hostname) 를 썼다. 그 배열의 merge key 가 topologyKey 라서
+    # last-applied-configuration 안에 키가 중복된 리스트가 남아 있고, 기본
+    # 방식(client-side 3-way merge)으로 적용하면 그 중복 때문에 병합 결과가
+    # maxSkew: 0 · matchLabels: null 로 깨진다. 검증에서 걸려 apply 자체가
+    # 실패하므로, 고친 매니페스트를 넣어도 영원히 반영되지 않는다.
+    #
+    # SSA 는 필드 소유권으로 병합해 이 이력을 타지 않는다. 한 번 넘어가고 나면
+    # 애노테이션이 새 구조로 갈리므로 뒤에는 없어도 되지만, 같은 실수를 다시
+    # 막아주므로 남겨 둔다.
+    argocd.argoproj.io/sync-options: ServerSideApply=true
   labels:
     app.kubernetes.io/name: chat-gateway
 spec:
@@ -54,16 +68,20 @@ spec:
           labelSelector:
             matchLabels:
               app.kubernetes.io/part-of: o2
-        # 위 제약은 o2-dev 파드 **전체**를 3/3 으로 가를 뿐이라, 그 안에서
-        # 같은 서비스의 두 파드가 한 노드에 붙어도 조건을 만족한다. 실제로
-        # 2026-08-21 머지 직후 chat-gateway 2개가 같은 노드에 몰렸다.
+        # ── AZ 분리 (강제) ──────────────────────────────────
+        # replicas 2 를 두는 이유가 노드 하나를 잃어도 버티는 것이므로 반드시
+        # 갈라야 한다. **topologyKey 가 위와 달라야 한다** — 배열의 merge key 가
+        # topologyKey 라서, 같은 키로 두 항목을 적으면 서버가 하나로 합치면서
+        # 뒤엣것의 DoNotSchedule 이 사라진다. 매니페스트에는 두 개가 보이는데
+        # 클러스터에는 ScheduleAnyway 하나만 남고, Argo 는 그 상태를 Synced 로
+        # 보고해 드리프트로도 안 잡힌다. 2026-08-25 에 api 두 파드가 같은 노드에
+        # 몰려 있는 것으로 발견했다.
         #
-        # replicas 2 를 두는 이유가 노드 장애를 견디는 것이므로 그러면 의미가
-        # 없다. 부하 측정에서도 두 파드가 같은 2 vCPU 를 나눠 쓰면 파드당
-        # 계수가 오염된다 (measurements.md M-010). 자기 서비스 기준을 하나 더
-        # 건다 — 두 제약은 AND 로 걸린다.
+        # 노드가 아니라 AZ 로 가르는 이유는 노드그룹 max 가 6 이라 한 AZ 에
+        # 노드가 둘 이상 생길 수 있고, 그때 hostname 기준이면 같은 AZ 안에서만
+        # 갈리기 때문이다.
         - maxSkew: 1
-          topologyKey: kubernetes.io/hostname
+          topologyKey: topology.kubernetes.io/zone
           whenUnsatisfiable: DoNotSchedule
           labelSelector:
             matchLabels:

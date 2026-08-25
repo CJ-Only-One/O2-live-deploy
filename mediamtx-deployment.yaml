@@ -46,6 +46,26 @@ spec:
       # 송출이 끊기면 시청자 화면이 멈춘다. 종료 전에 진행 중인 세그먼트
       # 전송을 끝낼 시간을 준다.
       terminationGracePeriodSeconds: 30
+      # 노드가 응답을 멈췄을 때 파드를 옮기기까지 기다리는 시간. 기본값이
+      # 300 초라 노드 장애에서 영상이 6 분 끊긴다 — 감지 40 초 + 대기 300 초 +
+      # 재생성 20 초. 라이브에서 6 분은 그 방송이 끝나는 시간이다.
+      #
+      # 20 초로 줄이면 약 85 초가 된다. 더 낮추지 않는 이유는 일시적인 네트워크
+      # 단절에도 파드가 옮겨다니게 되고, 이 파드는 Recreate 전략이라 옮길 때마다
+      # RTMP 가 반드시 한 번 끊기기 때문이다.
+      #
+      # replicas 를 2 로 늘려 해결할 수는 없다. RTMP 는 송출자가 파드 하나에만
+      # 붙고 HLS 세그먼트도 메모리에만 있어(hlsDirectory 비어 있음) 파드끼리
+      # 공유되지 않는다. 스트림이 없는 쪽으로 간 시청자는 404 를 받는다.
+      tolerations:
+        - key: node.kubernetes.io/not-ready
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 20
+        - key: node.kubernetes.io/unreachable
+          operator: Exists
+          effect: NoExecute
+          tolerationSeconds: 20
       containers:
         - name: mediamtx
           # 커밋 SHA 대신 버전 태그를 쓴다. 우리가 빌드하는 이미지가 아니라
