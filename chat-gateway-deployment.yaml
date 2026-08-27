@@ -47,7 +47,7 @@ spec:
         app.kubernetes.io/part-of: o2
         # 이미지 태그와 같은 커밋 SHA. app.yml의 deploy 잡이 함께 갱신한다.
         # Pod 템플릿에만 둔다 — selector.matchLabels는 생성 후 불변이다.
-        app.kubernetes.io/version: 379e4c1d51fa2f243d367fee118f9b690428f9b2
+        app.kubernetes.io/version: b6dfaa66c1380faa99cc846743ea2b649ecf9af2
     spec:
       # 노드그룹이 교체되면 파드가 한꺼번에 Pending 이 됐다가 배치된다. 그때 먼저
       # Ready 된 노드로 전부 쏠리고, 쿠버네티스는 나중에 뜬 노드로 **재분배하지
@@ -103,7 +103,7 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: chat-gateway
-          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/chat-gateway:379e4c1d51fa2f243d367fee118f9b690428f9b2
+          image: 066107819912.dkr.ecr.ap-northeast-2.amazonaws.com/o2/chat-gateway:b6dfaa66c1380faa99cc846743ea2b649ecf9af2
           ports:
             - name: http
               containerPort: 8080
