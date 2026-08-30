@@ -4,6 +4,8 @@
 
 O2는 라이브 영상, 실시간 채팅, 재고·주문·결제를 운영하는 서비스입니다. 동시에 사용자가 채팅으로 먼저 알린 이상 징후와 Datadog 모니터 신호를 하나의 Incident로 병합하고, 검증된 장애 이력과 Runbook을 근거로 AI Agent가 대응하도록 설계했습니다.
 
+**CJ Olivenetworks AI Cloud Wave 1기** 과정에서 5인 팀이 3주간 진행한 프로젝트입니다.
+
 자동화의 목표는 단순히 “AI가 명령을 실행하는 것”이 아닙니다. **가역적인 조치만 제한적으로 실행하고, 고정된 지표로 복구를 확인하며, 실패하면 원복하거나 사람에게 인계하는 운영 루프**를 만드는 것입니다.
 
 ## 목차
@@ -24,13 +26,13 @@ O2는 라이브 영상, 실시간 채팅, 재고·주문·결제를 운영하는
 
 ## 팀 구성
 
-| 이름 | 역할 | 담당 |
+| GitHub | 역할 | 담당 |
 |---|---|---|
-| 정영찬 | PM·인프라 | 프로젝트 관리, AWS·EKS 인프라 구축 |
-| 김도훈 | 데이터 파이프라인 | 이벤트 수집·집계·저장 파이프라인 구축 |
-| 이상문 | 서비스·CI/CD | 라이브커머스 서비스와 CI/CD·GitOps 구축 |
-| 서태영 | AI Agent | 이상 탐지·장애 진단 Agent 구축 |
-| 김수연 | AI Agent | 안전 조치·검증·결과 보고 Agent 구축 |
+| [@j0chan](https://github.com/j0chan) | PM·인프라 | 프로젝트 관리, AWS·EKS 인프라 구축 |
+| [@olavvn](https://github.com/olavvn) | 데이터 파이프라인 | 이벤트 수집·집계·저장 파이프라인 구축 |
+| [@SangMun](https://github.com/SangMun) | 서비스·CI/CD | 라이브커머스 서비스와 CI/CD·GitOps 구축 |
+| [@taeyoung0524](https://github.com/taeyoung0524) | AI Agent | 이상 탐지·장애 진단 Agent 구축 |
+| [@suys65](https://github.com/suys65) | AI Agent | 안전 조치·검증·결과 보고 Agent 구축 |
 
 ## 해결하려는 문제
 
