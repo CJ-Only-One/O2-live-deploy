@@ -1,12 +1,12 @@
 # O2 Live Commerce AIOps
 
+### CJ Olivenetworks AI Cloud Wave 1기 최종 프로젝트
+**5인 팀, 3주 진행**
+
 > AWS/EKS 기반 라이브커머스 서비스와, <br>채팅·메트릭에서 장애 신호를 찾아 안전하게 진단·조치·검증하는 AIOps 플랫폼
 
 O2는 라이브 영상, 실시간 채팅, 재고·주문·결제를 운영하는 서비스입니다. 동시에 사용자가 채팅으로 먼저 알린 이상 징후와 Datadog 모니터 신호를 하나의 Incident로 병합하고, 검증된 장애 이력과 Runbook을 근거로 AI Agent가 대응하도록 설계했습니다.
 
-**CJ Olivenetworks AI Cloud Wave 1기** 과정에서 5인 팀이 3주간 진행한 프로젝트입니다.
-
-자동화의 목표는 단순히 “AI가 명령을 실행하는 것”이 아닙니다. **가역적인 조치만 제한적으로 실행하고, 고정된 지표로 복구를 확인하며, 실패하면 원복하거나 사람에게 인계하는 운영 루프**를 만드는 것입니다.
 
 ## 목차
 
@@ -26,7 +26,7 @@ O2는 라이브 영상, 실시간 채팅, 재고·주문·결제를 운영하는
 
 ## 팀 구성
 
-| GitHub | 역할 | 담당 |
+| 팀원 | 역할 | 담당 |
 |---|---|---|
 | [@j0chan](https://github.com/j0chan) | PM·인프라 | 프로젝트 관리, AWS·EKS 인프라 구축 |
 | [@olavvn](https://github.com/olavvn) | 데이터 파이프라인 | 이벤트 수집·집계·저장 파이프라인 구축 |
@@ -68,8 +68,6 @@ O2는 이 문제를 세 계층으로 나눠 해결합니다.
 | AI | Dify, Amazon Bedrock, S3 Vectors | 진단·조치 워크플로, LLM 추론, 유사 장애 검색 |
 | Delivery | GitHub Actions, ECR, Argo CD | 검증, 이미지 배포, 선언 상태 동기화 |
 
-아키텍처 그림은 시스템 배치를 설명합니다. 자동 조치 활성화 여부와 시나리오별 실제 검증 범위는 [`scenario-readiness.md`](https://github.com/CJ-Only-One/O2-live-ai-ops/blob/main/docs/scenario-readiness.md)를 기준으로 판단합니다.
-
 ## 핵심 서비스 흐름
 
 ### 1. 라이브 영상
@@ -93,13 +91,6 @@ MediaMTX는 RTMP를 HLS로 리패키징하고, 대규모 시청자 팬아웃은 
 
 ![O2 관측 데이터 파이프라인](./docs/images/architecture/data-pipeline.png)
 
-```text
-Application + o2events SDK
-  ├→ Datadog Agent → Metrics · Logs · APM → Monitor
-  └→ Kinesis
-       ├→ Lambda → DynamoDB              # Warm context
-       └→ Firehose → S3 Data Lake        # Cold history
-```
 
 [`o2-sdk-for-event`](https://github.com/CJ-Only-One/o2-sdk-for-event)는 서비스가 발행하는 이벤트에 `event_id`, `trace_id`, 서비스 버전, 비식별 사용자 키를 자동으로 추가합니다. 로컬 큐와 배치 전송을 사용하므로 관측 경로 장애가 주문·채팅 요청을 막지 않습니다.
 
