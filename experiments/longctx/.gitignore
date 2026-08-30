@@ -1,0 +1,13 @@
+# 원본 로그 번들·산출물·로컬 DB는 용량+민감정보 소지로 제외한다.
+# 재현 가능한 건 스크립트뿐이다 — bundles 는 CloudWatch 에서 다시 받으면 된다.
+__pycache__/
+*.pyc
+.venv/
+bundles/
+outputs/
+mlruns/
+mlflow.db
+mlflow-ui.log
+spend.json
+burn.log
+migrate.log
